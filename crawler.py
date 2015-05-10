@@ -20,7 +20,6 @@ if emailOkay:
     import emailSender
     print("")
 
-from datetime import datetime, timedelta
 import urllib2, urlparse, json, os, time
 from bs4 import BeautifulSoup
 
@@ -98,10 +97,13 @@ def logData():
         json.dump(dataLog, outFile)
     outFile.close()
 
-def timeCheck():
-    currentTime = datetime.now()
-    if currentTime > (lastTime + timedelta(minutes=5)):
-        nextTime = datetime.now()
+def timeCheck(lastTime):
+    currentTime = time.time()
+    if (currentTime - lastTime) > 30:
+        print("Sup Mom")
+        hours += 1
+        del lastTime
+        nextTime = time.time()
         if jsonOkay:
             logData()
         if emailOkay:
@@ -112,12 +114,17 @@ def timeCheck():
     
 
 def message():
-    count = 0
+    queueCount = 0
+    lastPageCount = pageCount
     connectionData = {}
     for subdomain, url in urls.iteritems():
-        count += len(url)
-        connectionData[subdomain] = 
-    return {str(datetime.now()):{"Domains": domainsList, "recorded": len(recorded), "queue": count}}
+        queueCount += len(url)
+        connectionData[subdomain] = url['pages']
+    for subdomain, url in domains.iteritems():
+        pageCount += url['pages']
+    lastPageCount = pageCount - lastPageCount
+    print("Creating Message " + str(currentTime) + " [Links in queue: " + str(queueCount) + " | " + str(round(lastPageCount/60.0,2)) + " pph]")
+    return {str(currentTime):{"Domains": len(domainsList), "pages_visited": pageCount, "links_recorded": len(recorded), "links_in_queue": queueCount, "total_page_speed": pageCount/(hours * 60.0), "recent_page_speed": lastPageCount/60.0}}
 
 urls = {domain:["http://" + domain]}
 recorded = list()
@@ -134,14 +141,15 @@ try:
             domains[domain]['ignore'].append(line[10:])
         if "Crawl-delay: " in line[:13]:
             domains[domain]['delay'] = line[13:]
-    print("Robots.txt request successful\n")
+    print("Robots.txt Request Successful\n")
 except:
-    print("Robots.txt request unsuccessful\n")
+    print("Robots.txt Request Unsuccessful\n")
 
 urlsInQueue = True
-
-lastTime = datetime.now()
-print("Staring Time: " + str(lastTime))
+pageCount = 0
+lastTime = time.time()
+hours = 0
+print("Staring Time: " + str(lastTime) + "\n")
 
 while urlsInQueue:
     urlsInQueue = False
@@ -160,7 +168,8 @@ while urlsInQueue:
                 ignoreList = domains[subdomain]["ignore"]
 
                 for tag in soup.findAll('a', href=True):
-                    lastTime = timeCheck()
+                    print(lastTime)
+                    lastTime = timeCheck(lastTime)
                     link = processURL(tag)
                     if len(link) > 1:
                         domains[subdomain]["connections"]["total"] += 1
@@ -176,7 +185,6 @@ while urlsInQueue:
                                     domainsList.append(linkDomain)
                                     domains[linkDomain] = {'delay': 0, 'ignore': [], "connections": {"total":0, "external":0, "internal": 0}, "pages":0}
                                     robots()
-                                    print("New Domain: " + linkDomain)
                                 if linkDomain != subdomain:
                                     if linkDomain in domains[subdomain]["connections"].keys():
                                         domains[subdomain]["connections"][linkDomain] += 1
@@ -186,12 +194,8 @@ while urlsInQueue:
                                     domains[subdomain]["connections"]["internal"] += 1
                         else: # External
                             domains[subdomain]["connections"]["external"] += 1
-                        
-                if len(url) > 0:
-                    urlsInQueue = True
             except:
                 pass
-
     # Removed scanned links
     for removeDomain in removeLinks:
         urls[removeDomain].pop(0)
@@ -202,6 +206,9 @@ while urlsInQueue:
             urls[addDomain[0]].append(addDomain[1])
         else:
             urls[addDomain[0]] = [addDomain[1]]
+    # Are Links in Queue
+    for queueList in urls.values():
+        if len(queueList) > 0:
+            urlsInQueue = True
 
-#print("Domain dictionary: " + str(domains) + "\n") # Remove after testing
 print("Done")
