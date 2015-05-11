@@ -7,7 +7,7 @@ print("")
 
 jsonOkay = True
 
-emailOkay = False
+emailOkay = True
 if emailOkay:
     print("Email Settings")
     FROM = raw_input("Enter From Address: ")
@@ -18,9 +18,12 @@ if emailOkay:
     PASSWORD = raw_input("Enter Account Password: ")
     emailCount = 0
     import emailSender
+    SUBJECT = "Web Craler: Starting"
+    TEXT = str("Crawler pointing of this address")
+    emailSender.send(FROM,TO,SUBJECT,TEXT,SERVICE,PORT,USERNAME,PASSWORD)
     print("")
 
-import urllib2, urlparse, json, os, time
+import urllib2, urlparse, json, os, time, datetime
 from bs4 import BeautifulSoup
 
 if jsonOkay:
@@ -75,56 +78,41 @@ def processURL(tag):
     return link
 
 def emailSend():
-    print("Sending Email: " + str(emailCount))
-    SUBJECT = "Web Craler: Message " + str(emailCount)
-    TEXT = str(message())
+    global emailCount
+    SUBJECT = "Web Craler: Message"
+    TEXT = "Log #" + str(emailCount) + "\n" + str(text)
     emailSender.send(FROM,TO,SUBJECT,TEXT,SERVICE,PORT,USERNAME,PASSWORD)
     emailCount += 1
 
-def logData():
-    print("Logging JSON")    
+def logData():    
     try:
         inFile = open("data.json")
         dataLog = json.loads(inFile.read())
         inFile.close()
     except:
-        print("No JSON file found")
+        print("No JSON file found\n")
         dataLog = []
 
-    dataLog.append(message())
+    dataLog.append(text)
 
     with open('data.json', 'w') as outFile:
         json.dump(dataLog, outFile)
     outFile.close()
-
-def timeCheck(lastTime):
-    currentTime = time.time()
-    if (currentTime - lastTime) > 30:
-        print("Sup Mom")
-        hours += 1
-        del lastTime
-        nextTime = time.time()
-        if jsonOkay:
-            logData()
-        if emailOkay:
-            emailSend()
-        return nextTime
-    else:
-        return lastTime
     
-
 def message():
+    global lastPageCount
+    pageCount = 0
     queueCount = 0
-    lastPageCount = pageCount
-    connectionData = {}
+
     for subdomain, url in urls.iteritems():
         queueCount += len(url)
-        connectionData[subdomain] = url['pages']
     for subdomain, url in domains.iteritems():
         pageCount += url['pages']
     lastPageCount = pageCount - lastPageCount
-    print("Creating Message " + str(currentTime) + " [Links in queue: " + str(queueCount) + " | " + str(round(lastPageCount/60.0,2)) + " pph]")
-    return {str(currentTime):{"Domains": len(domainsList), "pages_visited": pageCount, "links_recorded": len(recorded), "links_in_queue": queueCount, "total_page_speed": pageCount/(hours * 60.0), "recent_page_speed": lastPageCount/60.0}}
+    print("Log " + str(emailCount) + " " + str(datetime.datetime.fromtimestamp(int(currentTime)).strftime('%Y-%m-%dT%H:%M:%S')) + " [Links in queue: " + str(queueCount) + " | " + str(round(lastPageCount/60.0,2)) + " ppm]\n")
+    dataText = {str(currentTime):{"Domains": len(domainsList), "pages_visited": pageCount, "links_recorded": len(recorded), "links_in_queue": queueCount, "total_page_speed": round(pageCount/(hours * 60.0),2), "recent_page_speed": round(lastPageCount/60.0,2)}}
+    lastPageCount = pageCount
+    return dataText
 
 urls = {domain:["http://" + domain]}
 recorded = list()
@@ -146,7 +134,7 @@ except:
     print("Robots.txt Request Unsuccessful\n")
 
 urlsInQueue = True
-pageCount = 0
+lastPageCount = 0
 lastTime = time.time()
 hours = 0
 print("Staring Time: " + str(lastTime) + "\n")
@@ -168,8 +156,15 @@ while urlsInQueue:
                 ignoreList = domains[subdomain]["ignore"]
 
                 for tag in soup.findAll('a', href=True):
-                    print(lastTime)
-                    lastTime = timeCheck(lastTime)
+                    currentTime = time.time()
+                    if (currentTime - lastTime) > 3600:
+                        hours += 1
+                        lastTime = time.time()
+                        text = message()
+                        if jsonOkay:
+                            logData()
+                        if emailOkay:
+                            emailSend()
                     link = processURL(tag)
                     if len(link) > 1:
                         domains[subdomain]["connections"]["total"] += 1
