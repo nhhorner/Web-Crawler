@@ -9,19 +9,25 @@ jsonOkay = True
 
 emailOkay = True
 if emailOkay:
-    print("Email Settings")
-    FROM = raw_input("Enter From Address: ")
-    TO = [raw_input("Enter To Address: ")]
-    SERVICE = "smtp.gmail.com"
-    PORT = 587
-    USERNAME = raw_input("Enter Account Username: ")
-    PASSWORD = raw_input("Enter Account Password: ")
-    emailCount = 0
-    import emailSender
-    SUBJECT = "Web Craler: Starting"
-    TEXT = str("Crawler pointing of this address")
-    emailSender.send(FROM,TO,SUBJECT,TEXT,SERVICE,PORT,USERNAME,PASSWORD)
-    print("")
+    want_email = raw_input("Do you want email from this thing? [Y/n]")
+    if want_email and not want_email.lower() == "y":
+        emailOkay = False
+        print("Okay, no email! Fine.\n")
+
+    if emailOkay:
+        print("Email Settings")
+        FROM = raw_input("Enter From Address: ")
+        TO = [raw_input("Enter To Address: ")]
+        SERVICE = "smtp.gmail.com"
+        PORT = 587
+        USERNAME = raw_input("Enter Account Username: ")
+        PASSWORD = raw_input("Enter Account Password: ")
+        emailCount = 0
+        import emailSender
+        SUBJECT = "Web Craler: Starting"
+        TEXT = str("Crawler pointing of this address")
+        emailSender.send(FROM,TO,SUBJECT,TEXT,SERVICE,PORT,USERNAME,PASSWORD)
+        print("")
 
 import urllib2, urlparse, json, os, time, datetime
 from bs4 import BeautifulSoup
@@ -51,7 +57,7 @@ def robots():
             print("problem is not from request")
     except:
         pass
-        
+
 def processURL(tag):
     if "#" in tag['href']:
         for place in range(len(tag['href'])):
@@ -84,7 +90,7 @@ def emailSend():
     emailSender.send(FROM,TO,SUBJECT,TEXT,SERVICE,PORT,USERNAME,PASSWORD)
     emailCount += 1
 
-def logData():    
+def logData():
     try:
         inFile = open("data.json")
         dataLog = json.loads(inFile.read())
@@ -98,7 +104,7 @@ def logData():
     with open('data.json', 'w') as outFile:
         json.dump(dataLog, outFile)
     outFile.close()
-    
+
 def message():
     global lastPageCount
     pageCount = 0
@@ -149,7 +155,7 @@ while urlsInQueue:
                 htmltext = urllib2.urlopen(url[0])
                 soup = BeautifulSoup(htmltext.read())
                 removeLinks.append(subdomain)
-                
+
                 # Page Count
                 domains[subdomain]["pages"] += 1
 
@@ -169,7 +175,7 @@ while urlsInQueue:
                     if len(link) > 1:
                         domains[subdomain]["connections"]["total"] += 1
                         linkDomain = urlparse.urlparse(link).netloc
-                        if domain in linkDomain: # Internal   
+                        if domain in linkDomain: # Internal
                             # Check new domain
                             if linkDomain:
                                 if link not in recorded:
